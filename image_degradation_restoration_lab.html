@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Signal Lab — Image Degradation &amp; Restoration</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0E1318;
+    --panel:#161D24;
+    --panel-2:#1C242C;
+    --line:#2A343D;
+    --text:#E7EDF2;
+    --muted:#8DA0AC;
+    --amber:#FFB454;
+    --teal:#5FD9C7;
+    --red:#FF7A6E;
+    --mono:'IBM Plex Mono', 'SF Mono', Consolas, monospace;
+    --sans:'IBM Plex Sans', system-ui, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:var(--sans);}
+  body{padding:18px 14px 60px;}
+  .scope-line{position:fixed;top:0;left:0;right:0;height:2px;background:repeating-linear-gradient(90deg,var(--amber) 0 6px, transparent 6px 12px);opacity:.5;}
+  header{max-width:980px;margin:8px auto 22px;}
+  .eyebrow-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--amber);box-shadow:0 0 8px var(--amber);}
+  .kicker{font-family:var(--mono);font-size:12px;color:var(--muted);letter-spacing:.02em;}
+  h1{font-size:26px;line-height:1.25;margin:0 0 8px;font-weight:700;}
+  h1 span{color:var(--amber);}
+  .lede{color:var(--muted);font-size:14.5px;line-height:1.55;max-width:62ch;margin:0;}
+  .formula{
+    margin-top:16px;font-family:var(--mono);font-size:15px;background:var(--panel);
+    border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:flex;flex-wrap:wrap;
+    gap:6px 10px;align-items:baseline;
+  }
+  .formula b{color:var(--text);font-weight:600;}
+  .formula .term{padding:2px 6px;border-radius:5px;transition:background .2s,color .2s;}
+  .formula .term.active{background:rgba(255,180,84,.15);color:var(--amber);}
+  .formula .arrow{color:var(--muted);}
+  main{max-width:980px;margin:0 auto;display:grid;grid-template-columns:280px 1fr;gap:16px;}
+  @media (max-width:820px){ main{grid-template-columns:1fr;} }
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;}
+  .panel h2{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:0 0 14px;font-family:var(--mono);font-weight:500;}
+  .panel h2 small{display:block;text-transform:none;letter-spacing:0;color:var(--muted);opacity:.7;margin-top:2px;font-size:10.5px;}
+  fieldset{border:none;padding:0;margin:0 0 18px;}
+  fieldset:last-child{margin-bottom:0;}
+  legend{font-family:var(--mono);font-size:12px;color:var(--teal);margin-bottom:8px;padding:0;display:flex;align-items:center;gap:7px;}
+  .toggle{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;}
+  .toggle input{width:14px;height:14px;accent-color:var(--teal);}
+  .row{margin:10px 0;}
+  .row label{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);margin-bottom:4px;}
+  .row label .val{color:var(--text);font-family:var(--mono);}
+  input[type=range]{width:100%;accent-color:var(--amber);}
+  select{width:100%;background:var(--panel-2);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:7px 8px;font-family:var(--sans);font-size:13px;}
+  .subgroup{padding-left:22px;border-left:2px solid var(--line);margin-top:8px;opacity:1;transition:opacity .2s;}
+  .subgroup.disabled{opacity:.35;pointer-events:none;}
+  .imgsrc-btns{display:flex;gap:8px;flex-wrap:wrap;}
+  .btn{font-family:var(--mono);font-size:12px;background:var(--panel-2);border:1px solid var(--line);color:var(--text);padding:8px 12px;border-radius:6px;cursor:pointer;}
+  .btn:hover{border-color:var(--teal);color:var(--teal);}
+  .btn.primary{border-color:var(--amber);color:var(--amber);}
+  input[type=file]{display:none;}
+  .canvases{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px;}
+  @media (max-width:560px){ .canvases{grid-template-columns:1fr;} }
+  figure{margin:0;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;overflow:hidden;}
+  figure canvas{width:100%;display:block;image-rendering:auto;background:#000;}
+  figcaption{padding:8px 10px;font-family:var(--mono);font-size:11px;color:var(--muted);display:flex;justify-content:space-between;border-top:1px solid var(--line);}
+  figcaption .metric{color:var(--teal);}
+  figcaption.f-degraded .metric{color:var(--red);}
+  .explain{margin-top:16px;}
+  .explain h3{font-size:14px;margin:0 0 6px;color:var(--amber);font-weight:600;}
+  .explain p{font-size:13.5px;line-height:1.6;color:#C7D2D9;margin:0 0 10px;}
+  .explain .math{font-family:var(--mono);background:var(--panel-2);border:1px solid var(--line);padding:8px 10px;border-radius:6px;font-size:13px;color:var(--teal);display:inline-block;margin-bottom:10px;}
+  footer{max-width:980px;margin:24px auto 0;color:var(--muted);font-size:11.5px;font-family:var(--mono);line-height:1.7;}
+  .status{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:10px;min-height:14px;}
+</style>
+</head>
+<body>
+<div class="scope-line"></div>
+
+<header>
+  <div class="eyebrow-row"><span class="dot"></span><span class="kicker">SIGNAL LAB · IMAGE RESTORATION BENCH</span></div>
+  <h1>Degrade a signal on purpose. Then earn it <span>back</span>.</h1>
+  <p class="lede">A working bench for the classic imaging model. Every knob below changes the math live — the degraded and restored panels are computed from scratch each time, not pre-rendered, so what you see is what actually ran.</p>
+  <div class="formula" id="formulaRow">
+    <b>g</b> <span class="arrow">=</span>
+    <span class="term" id="term-h">h</span> <span class="arrow">*</span>
+    <b>f</b> <span class="arrow">+</span>
+    <span class="term" id="term-n">n</span>
+  </div>
+</header>
+
+<main>
+  <section class="panel controls">
+    <fieldset>
+      <legend>01 — Source image f</legend>
+      <div class="imgsrc-btns">
+        <button class="btn primary" id="btnSample">Generate test chart</button>
+        <button class="btn" id="btnUpload">Upload photo</button>
+        <input type="file" id="fileInput" accept="image/*">
+      </div>
+      <div class="status" id="srcStatus">Test chart loaded · 128×128, grayscale</div>
+    </fieldset>
+
+    <fieldset>
+      <legend><label class="toggle"><input type="checkbox" id="blurOn" checked> Blur — the h in g=h*f+n</label></legend>
+      <div class="subgroup" id="blurGroup">
+        <div class="row">
+          <label>Kernel type</label>
+          <select id="blurType">
+            <option value="motion" selected>Motion blur (directional)</option>
+            <option value="gaussian">Gaussian blur (defocus)</option>
+            <option value="box">Box blur (average)</option>
+          </select>
+        </div>
+        <div class="row">
+          <label>Kernel size <span class="val" id="valKsize">9</span></label>
+          <input type="range" id="ksize" min="3" max="21" step="2" value="9">
+        </div>
+        <div class="row" id="angleRow">
+          <label>Motion angle <span class="val" id="valAngle">30°</span></label>
+          <input type="range" id="angle" min="0" max="179" step="1" value="30">
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend><label class="toggle"><input type="checkbox" id="dsOn"> Downsample — loss of resolution</label></legend>
+      <div class="subgroup disabled" id="dsGroup">
+        <div class="row">
+          <label>Downscale factor <span class="val" id="valDs">4×</span></label>
+          <input type="range" id="dsFactor" min="2" max="8" step="1" value="4">
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend><label class="toggle"><input type="checkbox" id="jpegOn"> JPEG artifacts — real browser encoder</label></legend>
+      <div class="subgroup disabled" id="jpegGroup">
+        <div class="row">
+          <label>Quality <span class="val" id="valJpeg">0.15</span></label>
+          <input type="range" id="jpegQ" min="0.02" max="0.6" step="0.01" value="0.15">
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Noise — the n in g=h*f+n</legend>
+      <div class="row">
+        <label>Type</label>
+        <select id="noiseType">
+          <option value="none">None</option>
+          <option value="gaussian" selected>Gaussian</option>
+          <option value="saltpepper">Salt &amp; pepper</option>
+        </select>
+      </div>
+      <div class="row" id="noiseAmtRow">
+        <label>Amount (σ) <span class="val" id="valNoise">0.04</span></label>
+        <input type="range" id="noiseAmt" min="0" max="0.2" step="0.005" value="0.04">
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>02 — Restoration method</legend>
+      <div class="row">
+        <select id="method">
+          <option value="inverse">Inverse filtering (frequency domain)</option>
+          <option value="wiener" selected>Wiener filtering (frequency domain)</option>
+          <option value="median">Median filter (spatial)</option>
+          <option value="bilateral">Bilateral filter (spatial)</option>
+          <option value="nlm">Non-local means (spatial)</option>
+        </select>
+      </div>
+      <div class="row" id="kRow">
+        <label>Regularization K <span class="val" id="valK">0.02</span></label>
+        <input type="range" id="kSlider" min="0.0001" max="0.15" step="0.0005" value="0.02">
+      </div>
+      <div class="row" id="winRow">
+        <label>Window size <span class="val" id="valWin">5</span></label>
+        <input type="range" id="winSlider" min="3" max="9" step="2" value="5">
+      </div>
+    </fieldset>
+    <div class="status" id="runStatus">Ready.</div>
+  </section>
+
+  <section>
+    <div class="panel">
+      <h2>Bench output <small>128×128 working resolution — deliberately small so the FFT math runs instantly and the effects are unmistakable</small></h2>
+      <div class="canvases">
+        <figure>
+          <canvas id="cvOrig" width="128" height="128"></canvas>
+          <figcaption><span>f — original</span><span>&nbsp;</span></figcaption>
+        </figure>
+        <figure>
+          <canvas id="cvDeg" width="128" height="128"></canvas>
+          <figcaption class="f-degraded"><span>g — degraded</span><span class="metric" id="psnrDeg">— dB</span></figcaption>
+        </figure>
+        <figure>
+          <canvas id="cvRes" width="128" height="128"></canvas>
+          <figcaption><span>f̂ — restored</span><span class="metric" id="psnrRes">— dB</span></figcaption>
+        </figure>
+      </div>
+      <div class="status">PSNR compares each panel to the true original f. Higher is closer to perfect recovery. This is a real, computed metric — not a placeholder.</div>
+    </div>
+
+    <div class="panel explain" id="explainPanel">
+      <h2>03 — What's actually happening</h2>
+      <div id="explainBody"></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  MODEL: g = h * f + n · h known (kernel is generated by this app, so restoration uses the true PSF — the "solvable" textbook case)<br>
+  BUILD NOTE: all FFTs, filters and the PSNR metric run client-side in plain JavaScript. No server, no external model calls.
+</footer>
+
+<script>
+(function(){
+  const N = 128;
+
+  // ---------- FFT (iterative radix-2 Cooley–Tukey) ----------
+  function fft1d(re, im, offset, stride, n, invert){
+    for (let i=1,j=0;i<n;i++){
+      let bit=n>>1;
+      for(;j&bit;bit>>=1) j^=bit;
+      j^=bit;
+      if(i<j){
+        const ia=offset+i*stride, ja=offset+j*stride;
+        let t=re[ia]; re[ia]=re[ja]; re[ja]=t;
+        t=im[ia]; im[ia]=im[ja]; im[ja]=t;
+      }
+    }
+    for(let len=2; len<=n; len<<=1){
+      const ang=(invert?2:-2)*Math.PI/len;
+      const wr0=Math.cos(ang), wi0=Math.sin(ang);
+      for(let i=0;i<n;i+=len){
+        let curWr=1, curWi=0;
+        for(let j=0;j<len/2;j++){
+          const idx1=offset+(i+j)*stride, idx2=offset+(i+j+len/2)*stride;
+          const ur=re[idx1], ui=im[idx1];
+          const vr=re[idx2]*curWr - im[idx2]*curWi;
+          const vi=re[idx2]*curWi + im[idx2]*curWr;
+          re[idx1]=ur+vr; im[idx1]=ui+vi;
+          re[idx2]=ur-vr; im[idx2]=ui-vi;
+          const nwr=curWr*wr0-curWi*wi0, nwi=curWr*wi0+curWi*wr0;
+          curWr=nwr; curWi=nwi;
+        }
+      }
+    }
+    if(invert){
+      for(let i=0;i<n;i++){ re[offset+i*stride]/=n; im[offset+i*stride]/=n; }
+    }
+  }
+  function fft2d(re, im, n, invert){
+    for(let r=0;r<n;r++) fft1d(re,im,r*n,1,n,invert);
+    for(let c=0;c<n;c++) fft1d(re,im,c,n,n,invert);
+  }
+  function fftForward(arr){
+    const re=Float64Array.from(arr), im=new Float64Array(N*N);
+    fft2d(re,im,N,false);
+    return {re,im};
+  }
+  function fftInverseReal(re,im){
+    const re2=Float64Array.from(re), im2=Float64Array.from(im);
+    fft2d(re2,im2,N,true);
+    return re2;
+  }
+  function complexMul(are,aim,bre,bim){
+    const n2=are.length, re=new Float64Array(n2), im=new Float64Array(n2);
+    for(let i=0;i<n2;i++){
+      re[i]=are[i]*bre[i]-aim[i]*bim[i];
+      im[i]=are[i]*bim[i]+aim[i]*bre[i];
+    }
+    return {re,im};
+  }
+
+  // ---------- Kernels / PSF ----------
+  function buildKernel(type, size, angleDeg){
+    const k = new Array(size*size).fill(0);
+    const cx=(size-1)/2, cy=(size-1)/2;
+    if(type==='box'){
+      for(let i=0;i<size*size;i++) k[i]=1;
+    } else if(type==='gaussian'){
+      const sigma = size/6;
+      for(let y=0;y<size;y++) for(let x=0;x<size;x++){
+        const dx=x-cx, dy=y-cy;
+        k[y*size+x]=Math.exp(-(dx*dx+dy*dy)/(2*sigma*sigma));
+      }
+    } else { // motion
+      const ang = angleDeg*Math.PI/180;
+      const half=(size-1)/2;
+      const steps = size*6;
+      for(let s=-steps;s<=steps;s++){
+        const t=(s/steps)*half;
+        const x=Math.round(cx+t*Math.cos(ang));
+        const y=Math.round(cy-t*Math.sin(ang));
+        if(x>=0&&x<size&&y>=0&&y<size) k[y*size+x]+=1;
+      }
+      if(k.every(v=>v===0)) k[cy*size+cx]=1; // degenerate guard
+    }
+    const sum = k.reduce((a,b)=>a+b,0) || 1;
+    return k.map(v=>v/sum);
+  }
+  // Place kernel into an N x N grid with wrap-around centering (psf2otf), then FFT -> OTF
+  function psf2otf(kernel, ksize){
+    const re=new Float64Array(N*N), im=new Float64Array(N*N);
+    const c=Math.floor(ksize/2);
+    for(let y=0;y<ksize;y++){
+      for(let x=0;x<ksize;x++){
+        const ty=((y-c)%N+N)%N, tx=((x-c)%N+N)%N;
+        re[ty*N+tx]=kernel[y*ksize+x];
+      }
+    }
+    fft2d(re,im,N,false);
+    return {re,im};
+  }
+
+  // ---------- Frequency-domain restoration ----------
+  function deconvolve(Gre,Gim,Hre,Him,K){
+    const n2=Gre.length, re=new Float64Array(n2), im=new Float64Array(n2);
+    for(let i=0;i<n2;i++){
+      const denom = Hre[i]*Hre[i]+Him[i]*Him[i]+K;
+      const cre = Hre[i]/denom, cim = -Him[i]/denom; // conj(H)/(|H|^2+K)
+      re[i]=Gre[i]*cre - Gim[i]*cim;
+      im[i]=Gre[i]*cim + Gim[i]*cre;
+    }
+    return fftInverseReal(re,im);
+  }
+
+  // ---------- Noise ----------
+  function gaussianSample(sigma){
+    let u1=Math.random()||1e-9, u2=Math.random();
+    return sigma*Math.sqrt(-2*Math.log(u1))*Math.cos(2*Math.PI*u2);
+  }
+  function addGaussianNoise(arr,sigma){
+    const out=new Float64Array(arr.length);
+    for(let i=0;i<arr.length;i++) out[i]=arr[i]+gaussianSample(sigma);
+    return out;
+  }
+  function addSaltPepper(arr,amount){
+    const out=Float64Array.from(arr);
+    for(let i=0;i<out.length;i++){
+      const r=Math.random();
+      if(r<amount/2) out[i]=0;
+      else if(r<amount) out[i]=1;
+    }
+    return out;
+  }
+
+  // ---------- Downsample / upsample (block-average then nearest-blow-up) ----------
+  function downUp(arr, factor){
+    const out=new Float64Array(N*N);
+    const bw = Math.max(1, Math.round(factor));
+    for(let by=0; by<N; by+=bw){
+      for(let bx=0; bx<N; bx+=bw){
+        let sum=0, cnt=0;
+        for(let y=by;y<Math.min(N,by+bw);y++)
+          for(let x=bx;x<Math.min(N,bx+bw);x++){ sum+=arr[y*N+x]; cnt++; }
+        const avg=sum/cnt;
+        for(let y=by;y<Math.min(N,by+bw);y++)
+          for(let x=bx;x<Math.min(N,bx+bw);x++) out[y*N+x]=avg;
+      }
+    }
+    return out;
+  }
+
+  // ---------- Spatial restoration filters ----------
+  function clamp01(v){ return v<0?0:(v>1?1:v); }
+  function get(arr,x,y){
+    x = Math.min(N-1, Math.max(0,x));
+    y = Math.min(N-1, Math.max(0,y));
+    return arr[y*N+x];
+  }
+  function medianFilter(arr, win){
+    const r=Math.floor(win/2), out=new Float64Array(N*N), buf=new Float64Array(win*win);
+    for(let y=0;y<N;y++) for(let x=0;x<N;x++){
+      let n=0;
+      for(let dy=-r;dy<=r;dy++) for(let dx=-r;dx<=r;dx++) buf[n++]=get(arr,x+dx,y+dy);
+      const sorted = Array.prototype.slice.call(buf,0,n).sort((a,b)=>a-b);
+      out[y*N+x]=sorted[Math.floor(n/2)];
+    }
+    return out;
+  }
+  function bilateralFilter(arr, win, sigmaSpatial, sigmaRange){
+    const r=Math.floor(win/2), out=new Float64Array(N*N);
+    for(let y=0;y<N;y++) for(let x=0;x<N;x++){
+      const center=get(arr,x,y);
+      let wsum=0, vsum=0;
+      for(let dy=-r;dy<=r;dy++) for(let dx=-r;dx<=r;dx++){
+        const v=get(arr,x+dx,y+dy);
+        const ws = Math.exp(-(dx*dx+dy*dy)/(2*sigmaSpatial*sigmaSpatial));
+        const wr = Math.exp(-((v-center)*(v-center))/(2*sigmaRange*sigmaRange));
+        const w = ws*wr;
+        wsum+=w; vsum+=w*v;
+      }
+      out[y*N+x]=vsum/wsum;
+    }
+    return out;
+  }
+  function nonLocalMeans(arr, patchR, searchR, h){
+    const out=new Float64Array(N*N);
+    const h2 = h*h;
+    function patchDist(x1,y1,x2,y2){
+      let d=0, cnt=0;
+      for(let dy=-patchR;dy<=patchR;dy++) for(let dx=-patchR;dx<=patchR;dx++){
+        const a=get(arr,x1+dx,y1+dy), b=get(arr,x2+dx,y2+dy);
+        d+=(a-b)*(a-b); cnt++;
+      }
+      return d/cnt;
+    }
+    for(let y=0;y<N;y++) for(let x=0;x<N;x++){
+      let wsum=0, vsum=0;
+      for(let dy=-searchR;dy<=searchR;dy++) for(let dx=-searchR;dx<=searchR;dx++){
+        const xx=x+dx, yy=y+dy;
+        if(xx<0||xx>=N||yy<0||yy>=N) continue;
+        const d = patchDist(x,y,xx,yy);
+        const w = Math.exp(-d/h2);
+        wsum+=w; vsum+=w*get(arr,xx,yy);
+      }
+      out[y*N+x]= wsum>0 ? vsum/wsum : get(arr,x,y);
+    }
+    return out;
+  }
+
+  function psnr(a,b){
+    let mse=0;
+    for(let i=0;i<a.length;i++){ const d=a[i]-b[i]; mse+=d*d; }
+    mse/=a.length;
+    if(mse===0) return Infinity;
+    return 10*Math.log10(1/mse);
+  }
+
+  // ---------- Image sources ----------
+  let original = new Float64Array(N*N);
+
+  function drawSampleChart(){
+    const c = document.createElement('canvas'); c.width=N; c.height=N;
+    const ctx = c.getContext('2d');
+    const g = ctx.createLinearGradient(0,0,N,N);
+    g.addColorStop(0,'#1a1a1a'); g.addColorStop(1,'#dddddd');
+    ctx.fillStyle=g; ctx.fillRect(0,0,N,N);
+    // checkerboard block (high frequency detail — great for showing blur)
+    const cs=6;
+    for(let y=0;y<40;y+=cs) for(let x=0;x<40;x+=cs){
+      ctx.fillStyle = ((x/cs+y/cs)%2===0) ? '#f5f5f5':'#101010';
+      ctx.fillRect(8+x,8+y,cs,cs);
+    }
+    // shapes
+    ctx.strokeStyle='#f0f0f0'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(92,34,18,0,Math.PI*2); ctx.stroke();
+    ctx.fillStyle='#202020'; ctx.fillRect(70,70,34,24);
+    ctx.strokeStyle='#000'; ctx.beginPath(); ctx.moveTo(20,110); ctx.lineTo(50,80); ctx.lineTo(60,110); ctx.closePath(); ctx.stroke();
+    // fine lines (resolution test)
+    for(let i=0;i<10;i++){
+      ctx.strokeStyle = i%2===0 ? '#000':'#fff';
+      ctx.beginPath(); ctx.moveTo(70+i*2,100); ctx.lineTo(70+i*2,124); ctx.stroke();
+    }
+    // text
+    ctx.fillStyle='#111'; ctx.font='bold 13px monospace';
+    ctx.fillText('LAB 2026', 10, 60);
+    return grayFromCanvas(c);
+  }
+  function grayFromCanvas(c){
+    const ctx=c.getContext('2d');
+    const id = ctx.getImageData(0,0,N,N).data;
+    const out = new Float64Array(N*N);
+    for(let i=0;i<N*N;i++){
+      const r=id[i*4], gc=id[i*4+1], b=id[i*4+2];
+      out[i] = (0.299*r+0.587*gc+0.114*b)/255;
+    }
+    return out;
+  }
+  function loadFileAsGray(file){
+    return new Promise((resolve,reject)=>{
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = ()=>{
+        const c=document.createElement('canvas'); c.width=N; c.height=N;
+        const ctx=c.getContext('2d');
+        // center-crop to square then draw to NxN
+        const side = Math.min(img.width,img.height);
+        const sx=(img.width-side)/2, sy=(img.height-side)/2;
+        ctx.drawImage(img, sx,sy,side,side, 0,0,N,N);
+        URL.revokeObjectURL(url);
+        resolve(grayFromCanvas(c));
+      };
+      img.onerror=reject;
+      img.src=url;
+    });
+  }
+  function jpegRoundTrip(arr, quality){
+    return new Promise((resolve)=>{
+      const c=document.createElement('canvas'); c.width=N; c.height=N;
+      const ctx=c.getContext('2d');
+      const id=ctx.createImageData(N,N);
+      for(let i=0;i<N*N;i++){
+        const v=Math.round(clamp01(arr[i])*255);
+        id.data[i*4]=v; id.data[i*4+1]=v; id.data[i*4+2]=v; id.data[i*4+3]=255;
+      }
+      ctx.putImageData(id,0,0);
+      const dataUrl = c.toDataURL('image/jpeg', quality);
+      const img = new Image();
+      img.onload = ()=>{
+        const c2=document.createElement('canvas'); c2.width=N; c2.height=N;
+        c2.getContext('2d').drawImage(img,0,0);
+        resolve(grayFromCanvas(c2));
+      };
+      img.src = dataUrl;
+    });
+  }
+
+  function renderGray(arr, canvas){
+    const ctx = canvas.getContext('2d');
+    const id = ctx.createImageData(N,N);
+    for(let i=0;i<N*N;i++){
+      const v = Math.round(clamp01(arr[i])*255);
+      id.data[i*4]=v; id.data[i*4+1]=v; id.data[i*4+2]=v; id.data[i*4+3]=255;
+    }
+    ctx.putImageData(id,0,0);
+  }
+
+  // ---------- UI wiring ----------
+  const el = id=>document.getElementById(id);
+  const blurOn=el('blurOn'), dsOn=el('dsOn'), jpegOn=el('jpegOn');
+  const blurGroup=el('blurGroup'), dsGroup=el('dsGroup'), jpegGroup=el('jpegGroup');
+  const blurType=el('blurType'), ksize=el('ksize'), angle=el('angle'), angleRow=el('angleRow');
+  const dsFactor=el('dsFactor'), jpegQ=el('jpegQ');
+  const noiseType=el('noiseType'), noiseAmt=el('noiseAmt'), noiseAmtRow=el('noiseAmtRow');
+  const method=el('method'), kSlider=el('kSlider'), kRow=el('kRow'), winSlider=el('winSlider'), winRow=el('winRow');
+
+  function syncLabels(){
+    el('valKsize').textContent = ksize.value;
+    el('valAngle').textContent = angle.value+'°';
+    el('valDs').textContent = dsFactor.value+'×';
+    el('valJpeg').textContent = parseFloat(jpegQ.value).toFixed(2);
+    el('valNoise').textContent = parseFloat(noiseAmt.value).toFixed(3);
+    el('valK').textContent = parseFloat(kSlider.value).toFixed(4);
+    el('valWin').textContent = winSlider.value;
+    blurGroup.classList.toggle('disabled', !blurOn.checked);
+    dsGroup.classList.toggle('disabled', !dsOn.checked);
+    jpegGroup.classList.toggle('disabled', !jpegOn.checked);
+    angleRow.style.display = blurType.value==='motion' ? '' : 'none';
+    noiseAmtRow.style.display = noiseType.value==='none' ? 'none' : '';
+    const freqMethod = (method.value==='inverse'||method.value==='wiener');
+    kRow.style.display = freqMethod ? '' : 'none';
+    winRow.style.display = freqMethod ? 'none' : '';
+    el('term-h').classList.toggle('active', blurOn.checked);
+    el('term-n').classList.toggle('active', noiseType.value!=='none');
+  }
+
+  const EXPLAIN = {
+    inverse: {
+      title:'Inverse filtering',
+      math:'F̂(u,v) = G(u,v) / H(u,v)   ≈   G · conj(H) / (|H|² + K),  K → tiny',
+      body:'This directly undoes the blur in the frequency domain by dividing out the known kernel\'s spectrum H. It\'s the cleanest idea in the whole toolbox — and the most fragile one. Wherever H(u,v) is small (which happens at many frequencies for a blur kernel), dividing by it massively amplifies whatever noise lives at that frequency. With zero noise this recovers the original almost exactly; with even mild noise it explodes into speckle. Push the noise slider up while on this method to watch it happen.'
+    },
+    wiener: {
+      title:'Wiener filtering',
+      math:'F̂(u,v) = G(u,v) · conj(H) / (|H|² + K),  K ≈ noise-to-signal ratio',
+      body:'Same formula as inverse filtering, but with a regularization term K added to the denominator on purpose. K acts as a safety floor: at frequencies where H is small, the filter backs off instead of dividing by (near) zero, trading a little sharpness for a lot of stability. Raising K gives a smoother, noise-tolerant result; lowering it toward zero turns this back into plain inverse filtering. This is the practical version taught right after inverse filtering, and the one actually used when noise is present.'
+    },
+    median: {
+      title:'Median filter',
+      math:'f̂(x,y) = median{ g(i,j) : (i,j) in a window around (x,y) }',
+      body:'Slides a window over the image and replaces each pixel with the median value inside that window, rather than the average. Because a single wildly wrong pixel (like salt-and-pepper noise) can\'t drag a median very far, this filter removes impulsive noise almost completely while keeping edges much sharper than a mean/blur filter would. It does nothing about blur — it only cleans up noise that got added afterward.'
+    },
+    bilateral: {
+      title:'Bilateral filter',
+      math:'f̂(x,y) = Σ w_s·w_r·g(i,j) / Σ w_s·w_r,  w_s = spatial closeness, w_r = intensity closeness',
+      body:'A smarter blur: it averages nearby pixels like a Gaussian blur, but only if they also have a similar intensity to the center pixel. Two spatially-close pixels on opposite sides of a sharp edge get very different weights, so the edge survives while flat, noisy regions get smoothed. This is the standard answer to "how do I remove noise without also removing edges?"'
+    },
+    nlm: {
+      title:'Non-local means',
+      math:'f̂(x,y) = Σ w(x,y; i,j)·g(i,j),  w based on similarity of whole patches, not single pixels',
+      body:'Instead of comparing single pixel intensities like the bilateral filter does, this compares small patches of pixels. Two regions anywhere in the search window that look alike (same little pattern of light and dark) get averaged together, even if they\'re not close to an edge. That\'s why it\'s called "non-local" — the best match for a noisy patch might be somewhere else entirely in the image. It usually preserves texture better than bilateral filtering, at a real computational cost.'
+    }
+  };
+
+  function updateExplain(){
+    const info = EXPLAIN[method.value];
+    el('explainBody').innerHTML =
+      '<h3>'+info.title+'</h3>'+
+      '<div class="math">'+info.math+'</div>'+
+      '<p>'+info.body+'</p>';
+  }
+
+  let runToken = 0;
+
+  async function run(){
+    const myToken = ++runToken;
+    el('runStatus').textContent = 'Computing…';
+
+    let g = Float64Array.from(original);
+    let H = null, ksz = 0;
+
+    if(blurOn.checked){
+      ksz = parseInt(ksize.value,10);
+      const kernel = buildKernel(blurType.value, ksz, parseInt(angle.value,10));
+      H = psf2otf(kernel, ksz);
+      const F = fftForward(g);
+      const Gc = complexMul(F.re,F.im,H.re,H.im);
+      g = fftInverseReal(Gc.re,Gc.im);
+    }
+
+    if(dsOn.checked){
+      g = downUp(g, parseInt(dsFactor.value,10));
+    }
+
+    if(jpegOn.checked){
+      g = await jpegRoundTrip(g, parseFloat(jpegQ.value));
+      if(myToken !== runToken) return;
+    }
+
+    if(noiseType.value==='gaussian'){
+      g = addGaussianNoise(g, parseFloat(noiseAmt.value));
+    } else if(noiseType.value==='saltpepper'){
+      g = addSaltPepper(g, parseFloat(noiseAmt.value));
+    }
+    for(let i=0;i<g.length;i++) g[i]=clamp01(g[i]);
+
+    // restoration
+    let restored;
+    const m = method.value;
+    if(m==='inverse' || m==='wiener'){
+      if(H){
+        const G = fftForward(g);
+        const K = parseFloat(kSlider.value);
+        restored = deconvolve(G.re,G.im,H.re,H.im,K);
+        for(let i=0;i<restored.length;i++) restored[i]=clamp01(restored[i]);
+      } else {
+        restored = Float64Array.from(g); // no known blur -> nothing to deconvolve
+      }
+    } else if(m==='median'){
+      restored = medianFilter(g, parseInt(winSlider.value,10));
+    } else if(m==='bilateral'){
+      restored = bilateralFilter(g, parseInt(winSlider.value,10), 2.5, 0.12);
+    } else { // nlm
+      const w = parseInt(winSlider.value,10);
+      restored = nonLocalMeans(g, 1, Math.max(3,Math.floor(w/2)+2), 0.08);
+    }
+
+    renderGray(original, el('cvOrig'));
+    renderGray(g, el('cvDeg'));
+    renderGray(restored, el('cvRes'));
+
+    el('psnrDeg').textContent = isFinite(psnr(g,original)) ? psnr(g,original).toFixed(1)+' dB' : '∞';
+    el('psnrRes').textContent = isFinite(psnr(restored,original)) ? psnr(restored,original).toFixed(1)+' dB' : '∞';
+
+    const noteFreq = (m==='inverse'||m==='wiener') && !H;
+    el('runStatus').textContent = noteFreq
+      ? 'Frequency-domain methods need a known blur — turn Blur on to use them meaningfully.'
+      : 'Done. PSNR computed against the true original.';
+    updateExplain();
+  }
+
+  // events
+  [blurOn,dsOn,jpegOn,blurType,ksize,angle,dsFactor,jpegQ,noiseType,noiseAmt,method,kSlider,winSlider].forEach(elm=>{
+    elm.addEventListener('input', ()=>{ syncLabels(); run(); });
+    elm.addEventListener('change', ()=>{ syncLabels(); run(); });
+  });
+
+  el('btnSample').addEventListener('click', ()=>{
+    original = drawSampleChart();
+    el('srcStatus').textContent = 'Test chart loaded · 128×128, grayscale';
+    run();
+  });
+  el('btnUpload').addEventListener('click', ()=> el('fileInput').click());
+  el('fileInput').addEventListener('change', async (e)=>{
+    const f = e.target.files[0];
+    if(!f) return;
+    el('srcStatus').textContent = 'Loading '+f.name+'…';
+    original = await loadFileAsGray(f);
+    el('srcStatus').textContent = f.name+' · center-cropped to 128×128, grayscale';
+    run();
+  });
+
+  // init
+  original = drawSampleChart();
+  syncLabels();
+  run();
+})();
+</script>
+</body>
+</html>
